@@ -1,0 +1,3 @@
+Malek: Phone: +972-50-123-4567, Grade: A
+Ahmad: Phone: +972-52-987-6543, Grade: B+
+Mohammed: Phone: +972-54-567-8901, Grade: A-

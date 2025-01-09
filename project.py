@@ -8,6 +8,7 @@ from langchain_community.document_loaders import PyPDFLoader
 from langchain.text_splitter import CharacterTextSplitter, RecursiveCharacterTextSplitter
 import numpy as np
 import time
+from bs4 import BeautifulSoup
 
 os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
 
@@ -84,6 +85,69 @@ def on_enter_pressed(_, entry_widget):
         l2.grid(row=1)
     entry_widget.delete(0, END)
 
+def html_reader(file):
+    with open(file, 'r', encoding='utf-8') as f:
+        html_content = f.read()
+
+    soup = BeautifulSoup(html_content, 'html.parser')
+    stack = list()
+    stack.append(soup.body)
+    file_text = list()
+    while len(stack) > 0:
+        element = stack.pop()
+        if hasattr(element, 'children'):
+            for child in element.children:
+                stack.append(child)
+
+        else:
+            # print(element)
+            file_text.append(element)
+
+    if soup.title:
+        text = f"{soup.title.string}\n"
+    else:
+        text = ""
+
+    for item in file_text[::-1]:
+        text += item
+
+    return text
+
+def reader(path):
+    text_files = list()
+    pdfs = list()
+    HTMLs = list()
+    for file in os.listdir(path):
+            _, extension = os.path.splitext(file)
+            if extension.lower() == ".txt":
+                with open(f"files/{file}", "r", encoding="utf-8") as f:
+                    data = f.read()
+                    text_files.append(data)
+            elif extension.lower() == ".pdf":
+                loader = PyPDFLoader(f"files/{file}")
+                pdfs.append(loader)
+            elif extension.lower() == "html":
+                html_text = html_reader(file)
+                HTMLs.append(html_text)
+
+    return text_files, pdfs
+
+def splitter(pdfs, text_files, text_splitter):
+    splitted_docs = list()
+    splitted_txt = list()
+    for pdf in pdfs:
+            pages = pdf.load()
+            docs = text_splitter.split_documents(pages)
+            for doc in docs:
+                # print(doc)
+                # print("\n\n")
+                splitted_docs.append(doc)
+
+    for txt in text_files:
+        for part in text_splitter.split_text(txt):
+            splitted_txt.append(part)
+
+    return splitted_txt, splitted_docs
 
 def main():
     global tokenizer, model, splitted_txt, index
@@ -101,17 +165,18 @@ def main():
     if not os.path.exists(index_folder):
 # reading the data in the files folder
         path = "./files"
-        text_files = list()
-        pdfs = list()
-        for file in os.listdir(path):
-            _, extension = os.path.splitext(file)
-            if extension.lower() == ".txt":
-                with open(f"files/{file}", "r", encoding="utf-8") as f:
-                    data = f.read()
-                    text_files.append(data)
-            elif extension.lower() == ".pdf":
-                loader = PyPDFLoader(f"files/{file}")
-                pdfs.append(loader)
+        text_files, pdfs = reader(path)
+        # text_files = list()
+        # pdfs = list()
+        # for file in os.listdir(path):
+        #     _, extension = os.path.splitext(file)
+        #     if extension.lower() == ".txt":
+        #         with open(f"files/{file}", "r", encoding="utf-8") as f:
+        #             data = f.read()
+        #             text_files.append(data)
+        #     elif extension.lower() == ".pdf":
+        #         loader = PyPDFLoader(f"files/{file}")
+        #         pdfs.append(loader)
                 # pages = loader.load()
                 # page = pages[0]
                 # print(page.page_content)
@@ -126,8 +191,8 @@ def main():
         #     print(txt)
 
     # splitting the data we read in little chunks with chunk size of 1000 char
-        splitted_docs = list()
-        splitted_txt = list()
+        # splitted_docs = list()
+        # splitted_txt = list()
         text_splitter = CharacterTextSplitter(
             separator="\n",
             chunk_size=1000,
@@ -140,19 +205,20 @@ def main():
             chunk_overlap=150,
             length_function=len
         )
-        for pdf in pdfs:
-            pages = pdf.load()
-            docs = text_splitter2.split_documents(pages)
-            for doc in docs:
-                # print(doc)
-                # print("\n\n")
-                splitted_docs.append(doc)
+        splitted_txt, splitted_docs = splitter(pdfs, text_files, text_splitter2)
+        # for pdf in pdfs:
+        #     pages = pdf.load()
+        #     docs = text_splitter2.split_documents(pages)
+        #     for doc in docs:
+        #         # print(doc)
+        #         # print("\n\n")
+        #         splitted_docs.append(doc)
 
-        for txt in text_files:
-            for part in text_splitter2.split_text(txt):
-                splitted_txt.append(part)
+        # for txt in text_files:
+        #     for part in text_splitter2.split_text(txt):
+        #         splitted_txt.append(part)
 
-        print(splitted_txt)
+        # print(splitted_txt)
 
     # embedding the data to numerical vectors
         # embedding_list = []

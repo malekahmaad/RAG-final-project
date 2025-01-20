@@ -55,7 +55,12 @@ class embedding_object:
         return self.embed_query(text)
 
 def find_similar_answer(question):
-    ...
+    results = faiss_store.similarity_search(question, k=2)
+    for result in results:
+        fileName = result.metadata
+        answer = result.page_content
+        print(f"Source: {fileName}")
+        print(f"answer: {answer}", end="\n\n")
 
 
 def on_enter_pressed(_, entry_widget):
@@ -117,24 +122,27 @@ def reader(path):
     text_files = list()
     pdfs = list()
     HTMLs = list()
+    names = list()
     for file in os.listdir(path):
             _, extension = os.path.splitext(file)
             if extension.lower() == ".txt":
-                with open(f"files/{file}", "r", encoding="utf-8") as f:
+                with open(f"{path}/{file}", "r", encoding="utf-8") as f:
                     data = f.read()
                     text_files.append(data)
+                    names.append(file)
             elif extension.lower() == ".pdf":
-                loader = PyPDFLoader(f"files/{file}")
+                loader = PyPDFLoader(f"{path}/{file}")
                 pdfs.append(loader)
             elif extension.lower() == "html":
                 html_text = html_reader(file)
                 HTMLs.append(html_text)
 
-    return text_files, pdfs
+    return names, text_files, pdfs
 
-def splitter(pdfs, text_files, text_splitter):
+def splitter(pdfs, text_files, text_splitter, filesnames):
     splitted_docs = list()
     splitted_txt = list()
+    names = list()
     for pdf in pdfs:
             pages = pdf.load()
             docs = text_splitter.split_documents(pages)
@@ -143,56 +151,34 @@ def splitter(pdfs, text_files, text_splitter):
                 # print("\n\n")
                 splitted_docs.append(doc)
 
-    for txt in text_files:
+    for file, txt in zip(filesnames, text_files):
         for part in text_splitter.split_text(txt):
             splitted_txt.append(part)
+            names.append({"source":file})
 
-    return splitted_txt, splitted_docs
+    print(splitted_txt)
+    print(names)
+    return splitted_txt, splitted_docs, names
 
 def main():
-    global tokenizer, model, splitted_txt, index
+    global tokenizer, model, splitted_txt, index, faiss_store
     start_time = time.time()
     # initializing the llama3.2-1B model
+    # model_name = "yam-peleg/Hebrew-Mistral-7B"
     model_name = "meta-llama/Llama-3.2-1B"
+    # we dont need it anymore
     token = "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"
-    tokenizer = AutoTokenizer.from_pretrained(model_name, token=token)
+    tokenizer = AutoTokenizer.from_pretrained(model_name)
     tokenizer.pad_token = tokenizer.eos_token
-    model = AutoModel.from_pretrained(model_name, token=token)
+    model = AutoModel.from_pretrained(model_name)
 
     persist_directory = 'chroma_db/'
     index_folder = "faiss_index"
     data_file = "data_file.txt"
     if not os.path.exists(index_folder):
 # reading the data in the files folder
-        path = "./files"
-        text_files, pdfs = reader(path)
-        # text_files = list()
-        # pdfs = list()
-        # for file in os.listdir(path):
-        #     _, extension = os.path.splitext(file)
-        #     if extension.lower() == ".txt":
-        #         with open(f"files/{file}", "r", encoding="utf-8") as f:
-        #             data = f.read()
-        #             text_files.append(data)
-        #     elif extension.lower() == ".pdf":
-        #         loader = PyPDFLoader(f"files/{file}")
-        #         pdfs.append(loader)
-                # pages = loader.load()
-                # page = pages[0]
-                # print(page.page_content)
-            # print(f"{name} is a {extension} type")
-
-
-        # for pdf in pdfs:
-        #     pages = pdf.load()
-        #     print(len(pages))
-
-        # for txt in text_files:
-        #     print(txt)
-
-    # splitting the data we read in little chunks with chunk size of 1000 char
-        # splitted_docs = list()
-        # splitted_txt = list()
+        path = "./filestest"
+        names, text_files, pdfs = reader(path)
         text_splitter = CharacterTextSplitter(
             separator="\n",
             chunk_size=1000,
@@ -205,100 +191,45 @@ def main():
             chunk_overlap=150,
             length_function=len
         )
-        splitted_txt, splitted_docs = splitter(pdfs, text_files, text_splitter2)
-        # for pdf in pdfs:
-        #     pages = pdf.load()
-        #     docs = text_splitter2.split_documents(pages)
-        #     for doc in docs:
-        #         # print(doc)
-        #         # print("\n\n")
-        #         splitted_docs.append(doc)
-
-        # for txt in text_files:
-        #     for part in text_splitter2.split_text(txt):
-        #         splitted_txt.append(part)
-
-        # print(splitted_txt)
-
-    # embedding the data to numerical vectors
-        # embedding_list = []
-        # print(len(splitted_txt))
-        # exit()
-        # for txt in splitted_txt:
-        #     # print(txt)
-        #     inputs = tokenizer(txt, return_tensors="pt", truncation=True, padding=True, max_length=512)
-        #     with torch.no_grad():
-        #         outputs = model(**inputs, output_hidden_states=True)
-        #         # print(outputs)
-        #         hidden_states = outputs.hidden_states[-1]
-        #         # print(f"{hidden_states.shape}\n{hidden_states}")
-        #         embeddings = hidden_states.mean(dim=1)
-        #         # print(embeddings)
-        #         embedding_list.append(embeddings)
-
-        # print(embedding_list[1].shape)
-        # print(type(embedding_list))
-        # print(embedding_list)
-
-        # embeddings_np = np.vstack(embedding_list).astype("float32")
-        # print(embeddings_np.shape)
-        # print(type(embeddings_np))
-        # print(embeddings_np)
-
-        # index = faiss.IndexFlatL2(embeddings_np.shape[1])
-        # index.add(embeddings_np)
-        # # print(f"\nembeddings_np after faiss index:\n{embeddings_np.shape[1]}")
-        # print(index.ntotal)
+        splitted_txt, splitted_docs, mete_data = splitter(pdfs, text_files, text_splitter2, names)
         embedding = embedding_object()
-        faiss_store = FAISS.from_texts(splitted_txt, embedding=embedding)
+        faiss_store = FAISS.from_texts(splitted_txt, embedding=embedding, metadatas=mete_data)
         faiss_store.save_local(index_folder)
-
-        # with open(data_file, "w", encoding="utf-8") as f:
-        #     f.write("\n".join(splitted_txt))
-
     else:
         embedding = embedding_object()
         faiss_store = FAISS.load_local(index_folder, embeddings=embedding, allow_dangerous_deserialization=True)
         print(type(faiss_store))
-    #     index = faiss.read_index(index_file)
-    #     with open(data_file, "r", encoding="utf-8") as f:
-    #         splitted_txt = [line.strip() for line in f.readlines()]
-
-    # print(len(splitted_txt))
-    # print(index.ntotal)
-
-    query = "Who is anas?"
-    results = faiss_store.similarity_search(query, k=2)
-    for result in results:
-        print(result)
 
     end_time = time.time()
     elapsed_time = end_time - start_time
     print(f"Elapsed time: {elapsed_time:.4f} seconds")
+    while TRUE:
+        query = input("question: ")
+        find_similar_answer(query)
 
-    root =Tk()
-    root.title("AI")
-    root.geometry("400x300")
-    root.configure(bg="black")
-    l = Label(
-            root,
-            text="Welcome to our AI.\nPlease enter your question below.",
-            bg="black",
-            fg="white",
-            font=("Times New Roman", 14)
-        )
-    l.grid(row=0, column=0, columnspan=2, pady=20)
-    e = Entry(
-            root,
-            width=50,
-            highlightbackground="grey",
-            highlightthickness=5
-        )
-    e.grid(row=1, column=0, columnspan=2, pady=50)
-    e.bind("<Return>", lambda event: on_enter_pressed(event, e))
-    root.grid_columnconfigure(0, weight=1)
-    root.grid_columnconfigure(1, weight=1)
-    root.mainloop()
+    # root =Tk()
+    # root.title("AI")
+    # root.geometry("400x300")
+    # root.configure(bg="black")
+    # l = Label(
+    #         root,
+    #         text="Welcome to our AI.\nPlease enter your question below.",
+    #         bg="black",
+    #         fg="white",
+    #         font=("Times New Roman", 14)
+    #     )
+    # l.grid(row=0, column=0, columnspan=2, pady=20)
+    # e = Entry(
+    #         root,
+    #         width=50,
+    #         highlightbackground="grey",
+    #         highlightthickness=5
+    #     )
+    # e.grid(row=1, column=0, columnspan=2, pady=50)
+    # e.bind("<Return>", lambda event: on_enter_pressed(event, e))
+    # root.grid_columnconfigure(0, weight=1)
+    # root.grid_columnconfigure(1, weight=1)
+    # root.mainloop()
 
 
 if __name__ == "__main__":

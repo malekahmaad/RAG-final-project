@@ -57,7 +57,10 @@ class embedding_object:
 def find_similar_answer(question):
     results = faiss_store.similarity_search(question, k=2)
     for result in results:
-        print(result)
+        fileName = result.metadata
+        answer = result.page_content
+        print(f"Source: {fileName}")
+        print(f"answer: {answer}", end="\n\n")
 
 
 def on_enter_pressed(_, entry_widget):
@@ -119,24 +122,27 @@ def reader(path):
     text_files = list()
     pdfs = list()
     HTMLs = list()
+    names = list()
     for file in os.listdir(path):
             _, extension = os.path.splitext(file)
             if extension.lower() == ".txt":
-                with open(f"files/{file}", "r", encoding="utf-8") as f:
+                with open(f"{path}/{file}", "r", encoding="utf-8") as f:
                     data = f.read()
                     text_files.append(data)
+                    names.append(file)
             elif extension.lower() == ".pdf":
-                loader = PyPDFLoader(f"files/{file}")
+                loader = PyPDFLoader(f"{path}/{file}")
                 pdfs.append(loader)
             elif extension.lower() == "html":
                 html_text = html_reader(file)
                 HTMLs.append(html_text)
 
-    return text_files, pdfs
+    return names, text_files, pdfs
 
-def splitter(pdfs, text_files, text_splitter):
+def splitter(pdfs, text_files, text_splitter, filesnames):
     splitted_docs = list()
     splitted_txt = list()
+    names = list()
     for pdf in pdfs:
             pages = pdf.load()
             docs = text_splitter.split_documents(pages)
@@ -145,17 +151,21 @@ def splitter(pdfs, text_files, text_splitter):
                 # print("\n\n")
                 splitted_docs.append(doc)
 
-    for txt in text_files:
+    for file, txt in zip(filesnames, text_files):
         for part in text_splitter.split_text(txt):
             splitted_txt.append(part)
+            names.append({"source":file})
 
-    return splitted_txt, splitted_docs
+    print(splitted_txt)
+    print(names)
+    return splitted_txt, splitted_docs, names
 
 def main():
     global tokenizer, model, splitted_txt, index, faiss_store
     start_time = time.time()
     # initializing the llama3.2-1B model
-    model_name = "yam-peleg/Hebrew-Mistral-7B"
+    # model_name = "yam-peleg/Hebrew-Mistral-7B"
+    model_name = "meta-llama/Llama-3.2-1B"
     # we dont need it anymore
     token = "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"
     tokenizer = AutoTokenizer.from_pretrained(model_name)
@@ -167,8 +177,8 @@ def main():
     data_file = "data_file.txt"
     if not os.path.exists(index_folder):
 # reading the data in the files folder
-        path = "./files"
-        text_files, pdfs = reader(path)
+        path = "./filestest"
+        names, text_files, pdfs = reader(path)
         text_splitter = CharacterTextSplitter(
             separator="\n",
             chunk_size=1000,
@@ -181,9 +191,9 @@ def main():
             chunk_overlap=150,
             length_function=len
         )
-        splitted_txt, splitted_docs = splitter(pdfs, text_files, text_splitter2)
+        splitted_txt, splitted_docs, mete_data = splitter(pdfs, text_files, text_splitter2, names)
         embedding = embedding_object()
-        faiss_store = FAISS.from_texts(splitted_txt, embedding=embedding)
+        faiss_store = FAISS.from_texts(splitted_txt, embedding=embedding, metadatas=mete_data)
         faiss_store.save_local(index_folder)
     else:
         embedding = embedding_object()

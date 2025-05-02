@@ -1,0 +1,16 @@
+.model-name{
+    background-color: rgb(30, 29, 29);
+    position: fixed;
+    color: aliceblue;
+    border: 2px solid rgb(30, 29, 29);
+    border-radius: 30px;
+    left: 10px;
+    padding: 10px;
+    font-family: Cambria, Cochin, Georgia, Times, 'Times New Roman', serif;
+  }
+
+.header-text{
+  /* change these a little bit */
+    font-family: Cambria, Cochin, Georgia, Times, 'Times New Roman', serif;
+    color: white;
+}

@@ -1,0 +1,133 @@
+.search {
+    margin-top: 10px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 10px;
+}
+
+.search-title {
+    font-size: 18px;
+    font-weight: bold;
+    color: white;
+}
+
+.search-bar {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 10px;
+    background-color: rgb(88, 88, 88);
+    border-radius: 10px;
+    padding: 5px;
+}
+
+.file_input{
+    height: 30px;
+    width: 200px;
+    border-radius: 10px;
+    background-color: rgb(88, 88, 88);
+    color: white;
+    border: none;
+    outline: none;
+}
+
+.files {
+    margin-top: 10px;
+    width: 100%;
+    max-height: 55vh;
+    overflow-y: auto;
+    background-color: rgb(60, 60, 60);
+    border-radius: 10px;
+    padding: 10px;
+    scrollbar-color: rgb(140, 180, 255) rgb(60, 60, 60);
+    scrollbar-width: none;
+}
+
+.files:hover {
+    scrollbar-width: thin;
+}
+
+.file-list {
+    list-style-type: none;
+    padding: 0;
+    margin: 0;
+}
+
+.file-item {
+    padding: 8px 12px;
+    color: white;
+    border-bottom: 1px solid rgb(100, 100, 100);
+    font-family: Arial, sans-serif;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 5px;
+}
+ 
+.file-name {
+    max-width: 120px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.file-actions {
+    display: flex;
+    gap: 10px;
+}
+  
+.file-action {
+    color: rgb(140, 180, 255);
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 500;
+    transition: color 0.2s ease;
+}
+  
+.file-action:hover {
+    color: white;
+    text-decoration: underline;
+}
+
+.search_file {
+    height: 30px;
+    width: 30px;
+    font-size: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    background-color: rgb(117, 117, 117);
+    color: white;
+    border: none;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+}
+
+.search_button:hover {
+    background-color: rgb(160, 160, 160);
+}
+
+.upload_button {
+    height: 35px;
+    padding: 0 20px;
+    font-size: 14px;
+    font-weight: bold;
+    border-radius: 30px;
+    background-color: rgb(70, 140, 200);
+    color: white;
+    border: none;
+    cursor: pointer;
+    margin-top: 10px;
+    transition: background-color 0.2s ease;
+}
+  
+.upload_button:hover {
+    background-color: rgb(90, 160, 220);
+}
+
+.hidden {
+    display: none;
+}

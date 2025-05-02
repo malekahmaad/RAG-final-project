@@ -1,0 +1,59 @@
+* {
+  box-sizing: border-box;
+}
+
+.App {
+  display: flex;
+  flex-direction: column;
+  width: 100vw;
+  height: 100vh;
+  justify-content: center;
+  align-items: center;
+  background-color: rgb(45, 45, 45);
+  overflow: hidden;
+}
+
+.header{
+  order: 1;
+  flex: 1;
+  max-height: 70px;
+  min-height: 50px;
+  flex-shrink: 0;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  border-bottom: 1px solid rgb(95, 95, 95);
+  width: 100%;
+}
+
+.page{
+  flex: 8;
+  order: 2;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex-direction: row;
+  height: 100%;
+  width: 100%;
+  background-color: rgb(30, 29, 29);
+}
+
+.chat{
+  flex: 3;
+  order: 2;
+  display: flex;
+  justify-content: center;
+  align-items: flex-end;
+  height: 100%;
+  background-color: rgb(45, 45, 45);
+  padding: 15px;
+}
+
+.search{
+  flex: 1;
+  order: 1;
+  display: flex;
+  justify-content: center;
+  height: 100%;
+  color: white;
+}

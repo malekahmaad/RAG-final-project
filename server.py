@@ -13,6 +13,9 @@ from langchain.chains import RetrievalQA
 from langchain_huggingface import HuggingFacePipeline
 from langchain.prompts import PromptTemplate
 from flask_cors import CORS
+import hashlib
+import json
+import shutil
 
 
 server = Flask(__name__)
@@ -23,6 +26,8 @@ persist_directory = 'chroma_db/'
 index_folder = "faiss_index"
 data_file = "data_file.txt"
 mainFolder = "./filestest"
+tempFolder = "./temp"
+hash_json = f"{index_folder}/hash.json"
 
 
 class embedding_object:
@@ -66,6 +71,22 @@ class embedding_object:
     
     def __call__(self, text):
         return self.embed_query(text)
+
+
+def hash_function(data):
+    hasher = hashlib.sha256()
+    for chunk in data:
+        hasher.update(chunk.encode("utf-8"))
+
+    return hasher.hexdigest()
+
+
+def get_dict_key(dict, v):
+    for key, value in dict.items():
+        if value == v:
+            return key
+    
+    return None
 
 
 def html_reader(file_path):
@@ -246,38 +267,61 @@ def save_files():
     if not os.path.exists(mainFolder):
         os.makedirs(mainFolder)
     
-    saved_files =  os.listdir(mainFolder)
-    print(saved_files)   
-    print("got files")
+    if not os.path.exists(tempFolder):
+        os.makedirs(tempFolder)
+    
+    # saved_files =  os.listdir(mainFolder)
+    # print(saved_files)
+    saved_hashes = {}
+    if os.path.exists(hash_json):
+        with open(hash_json, "r") as file:
+            saved_hashes = json.load(file)
+     
+    print(saved_hashes)
     if "files" not in request.files:
         return jsonify({"error": "No files found in request"}), 400
     
     uploaded_files = request.files.getlist("files")
     # print(uploaded_files)
+    response = ""
     for file in uploaded_files:
         if file.filename == "":
             continue
-        if file.filename not in saved_files:
-            print(file.filename)
-            if os.path.exists(index_folder):
-                faiss_store = FAISS.load_local(index_folder, embeddings=embedding, allow_dangerous_deserialization=True)
+        # if file.filename not in saved_files:
+        print(file.filename)
+        if os.path.exists(index_folder):
+            faiss_store = FAISS.load_local(index_folder, embeddings=embedding, allow_dangerous_deserialization=True)
 
-            saving_path = os.path.join(mainFolder, file.filename)
-            file.save(saving_path)
-            time.sleep(5)
-            file_data = reader(saving_path)
-            if file_data == FileNotFoundError:
-                return jsonify({"error": "error while uploading the files"}), 501
+        saving_path = os.path.join(mainFolder, file.filename)
+        temp_saving_path = os.path.join(tempFolder, file.filename)
+        file.save(temp_saving_path)
+        # time.sleep(5)
+        file_data = reader(temp_saving_path)
+        if file_data == FileNotFoundError:
+            return jsonify({"error": "error while uploading the files"}), 501
             # in splitter for every chunk give the source = filename
-            splitted_data, metadata = splitter(file_data, file.filename)
-            if faiss_store == None:
-                faiss_store = FAISS.from_texts(splitted_data, embedding=embedding, metadatas=metadata)
-            else:
-                faiss_store.add_texts(splitted_data, metadatas=metadata)
+        splitted_data, metadata = splitter(file_data, file.filename)
+        hash_value = hash_function(splitted_data)
+        if hash_value in saved_hashes.values():
+            key = get_dict_key(saved_hashes, hash_value)
+            response+=f"{file.filename} does exist and its name is {key}, "
+            os.remove(temp_saving_path)
+            continue
 
-            faiss_store.save_local(index_folder)
+        if faiss_store == None:
+            faiss_store = FAISS.from_texts(splitted_data, embedding=embedding, metadatas=metadata)
+        else:
+            faiss_store.add_texts(splitted_data, metadatas=metadata)
+
+        faiss_store.save_local(index_folder)
+        shutil.move(temp_saving_path, saving_path)
+        saved_hashes[file.filename] = hash_value
+        response+=f"{file.filename} uploaded successfully, "
     
-    return jsonify({"response": "files uploaded successfully"})
+    with open(hash_json, "w") as file:
+        json.dump(saved_hashes, file, indent=4)
+
+    return jsonify({"response": response})
 
 if __name__ == "__main__":
     initialize_model()

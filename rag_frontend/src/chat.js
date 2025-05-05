@@ -3,16 +3,8 @@ import { useState, useRef } from 'react';
 import axios from 'axios';
 
 function Chat() {
-  const [chatMessages, setChatMessages] = useState([
-    // { question: "What are the pyramids?", answer: "They are ancient Egyptian tombs.", source_files: ["file2"] },
-    // { question: "whats you name?", answer: "Im RAG AI model" },
-    // { question: "What are the pyramids?", answer: "They are ancient Egyptian tombs." },
-    // { question: "What are the pyramids?", answer: "They are ancient Egyptian tombs." },
-    // { question: "What are the pyramids?", answer: "They are ancient Egyptian tombs." },
-    // { question: "What are the pyramids?", answer: "They are ancient Egyptian tombs." },
-    // { question: "What are the pyramids?", answer: "They are ancient Egyptian tombs." },
-    // { question: "What are the pyramids?", answer: "They are ancient Egyptian tombs." }
-  ]);
+  const [chatMessages, setChatMessages] = useState([]);
+  const [answering, setAnswering] = useState(false);
   const [first, setFirst] = useState(true);
   const [input, setInput] = useState("");
   const [expandedIndexes, setExpandedIndexes] = useState([]);
@@ -28,6 +20,7 @@ function Chat() {
   };
 
   const handle_send = ()=>{
+    setAnswering(true);
     console.log(input);
     console.log(chatMessages)
     const trimmed = input.trim();
@@ -82,14 +75,18 @@ function Chat() {
             };
             return updated;
           });
+          setAnswering(false);
         }
       };
-
       typeChar();
     })
     .catch(error => {
       console.error(error);
-    });
+      setAnswering(false);
+    })
+    // .finally(() => {
+    //   setAnswering(false);
+    // });
   }
 
   const handleDownloadFile = (fileName) => {
@@ -160,6 +157,11 @@ function Chat() {
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={(e)=> {
+              if (answering){
+                if(e.key === "Enter" && !e.shiftKey)
+                  e.preventDefault();
+                return;
+              }
               if(e.key === "Enter" && !e.shiftKey){
                 e.preventDefault();
                 handle_send();
@@ -171,6 +173,11 @@ function Chat() {
           className='submit-button' 
           title="Send message"
           onClick={handle_send}
+          disabled={answering}
+          style={{
+            cursor: answering ? 'not-allowed' : 'pointer',
+            opacity: answering ? 0.6 : 1
+          }}
           >
             📨
           </button>

@@ -4,20 +4,27 @@ import { useEffect, useState } from 'react';
 
 function Search() {
   const [files, setFiles] = useState([]);
-  const [selectedFiles, setSelectedFiles] = useState([]);
+  const [allFiles, setAllFiles] = useState([]);
+  const [uploading, setUploading] = useState(false);
+  const [uploadMessage, setUploadMessage] = useState("");
+  // const [searchInput, setSearchInput] = useState("");
   useEffect(()=>{
     get_files();
-    // needs to put it in the files list for the selected when i do th input function
-    setSelectedFiles(files);
   }, []);
 
   const get_files = () =>{
     axios.get("http://localhost:5000/files")
-    .then(response=>setFiles(response.data["files names"].sort()))
+    .then(response=>{
+      // setFiles(response.data["files names"].sort())
+      const sortedFiles = response.data["files names"].sort();
+      setFiles(sortedFiles);
+      setAllFiles(sortedFiles);
+    })
     .catch(error=>console.error(error))
   }
 
   const handleFileChange = (event) => {
+    setUploading(true);
     const files = Array.from(event.target.files);
     const form = new FormData();
     if (files.length > 0) {
@@ -31,8 +38,13 @@ function Search() {
     .then(res => {
       console.log(res)
       get_files();
+      setUploadMessage("✅ File(s) uploaded successfully!");
+      setTimeout(() => setUploadMessage(""), 3000);
     })
-    .catch(error => console.error(error));
+    .catch(error => console.error(error))
+    .finally(() => {
+      setUploading(false); 
+    });
     // console.log(form);
     // console.log(form["files"]);
   };
@@ -61,6 +73,21 @@ function Search() {
     .catch(error=>console.error(error));
   }
 
+  const handleInputChange = (event) => {
+    const value = event.target.value.toLowerCase();
+    if(value === ""){
+      // console.log("nice");
+      setFiles(allFiles)
+    }
+    else{
+      // console.log("Search input:", value);
+      const filteredFiles = allFiles.filter(file =>
+        file.toLowerCase().includes(value)
+      );
+      setFiles(filteredFiles);
+    }
+  };
+
   return (
     <div className='search'>
       <div className='search-title'>Source files</div>
@@ -69,6 +96,8 @@ function Search() {
           placeholder='Write file name...'
           className='file_input'
           type="text"
+          // value={searchInput}
+          onChange={(e) => handleInputChange(e)}
         />
         {/* <button className='search_file' title="Submit">🔍</button> */}
       </div>
@@ -110,9 +139,19 @@ function Search() {
       className='upload_button' 
       title="Upload new file"
       onClick={() => document.getElementById("file-upload").click()}
+      disabled = {uploading}
+      style={{
+        cursor: uploading ? 'not-allowed' : 'pointer',
+        opacity: uploading ? 0.6 : 1
+      }}
       >
         📤 Upload File
       </button>
+      {uploadMessage && (
+        <div className="upload-message">
+          {uploadMessage}
+        </div>
+      )}
     </div>
   );
 }

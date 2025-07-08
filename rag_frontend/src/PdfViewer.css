@@ -1,0 +1,11 @@
+.react-pdf__Page__textContent span {
+  color: black !important; 
+  mix-blend-mode: normal !important; 
+  background-color: yellow;
+}
+
+.react-pdf__Page__textContent {
+  z-index: 2 !important;
+  opacity: 1 !important;
+  color: transparent; /* So the highlight is visible and we rely on background */
+}

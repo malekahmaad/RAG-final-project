@@ -35,7 +35,8 @@
 
 .files {
     margin-top: 10px;
-    width: 100%;
+    max-width: 100%;
+    min-width: 90%;
     max-height: 50vh;
     overflow-y: auto;
     background-color: rgb(60, 60, 60);
@@ -67,7 +68,7 @@
 }
  
 .file-name {
-    max-width: 120px;
+    width: 90px;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;

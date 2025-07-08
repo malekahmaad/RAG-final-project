@@ -16,63 +16,57 @@ from flask_cors import CORS
 import hashlib
 import json
 import shutil
+from langchain_community.chat_models import ChatOpenAI
+from langchain_openai import OpenAIEmbeddings
 
 
 server = Flask(__name__)
 CORS(server)
 
+
 os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
 persist_directory = 'chroma_db/'
 index_folder = "faiss_index"
 data_file = "data_file.txt"
-mainFolder = "./filestest"
+mainFolder = "./files"
 tempFolder = "./temp"
 hash_json = f"{index_folder}/hash.json"
 
-
+# the embedding class
 class embedding_object:
     def embed_documents(self, texts):
         embeddings = []
         for text in texts:
-            inputs = tokenizer(text, return_tensors="pt", truncation=True, padding=True, max_length=512)
+            inputs = embedding_model_tokenizer(text, return_tensors="pt", truncation=True, padding=True, max_length=512)
             with torch.no_grad():
-                outputs = model(**inputs, output_hidden_states=True)
-                # print(outputs)
+                outputs = embedding_model(**inputs, output_hidden_states=True)
                 hidden_states = outputs.hidden_states
                 selected_states = hidden_states[-1]
-                # print(f"{hidden_states.shape}\n{hidden_states}")
                 embedding = selected_states.mean(dim=1)
                 embedding = torch.nn.functional.normalize(embedding, p=2, dim=1)
                 embedding_np = np.vstack(embedding).astype("float32")
                 embedding_list = [element for element in embedding_np[0]]
-                # print(type(embedding_list))
-                # print(type(embedding_list[0]))
                 embeddings.append(embedding_list)
-                # print(embeddings)
 
         return embeddings
 
     def embed_query(self, text):
-        inputs = tokenizer(text, return_tensors="pt", truncation=True, padding=True, max_length=512)
+        inputs = embedding_model_tokenizer(text, return_tensors="pt", truncation=True, padding=True, max_length=512)
         with torch.no_grad():
-            outputs = model(**inputs, output_hidden_states=True)
-            # print(outputs)
+            outputs = embedding_model(**inputs, output_hidden_states=True)
             hidden_states = outputs.hidden_states
             selected_states = hidden_states[-1]
-            # print(f"{hidden_states.shape}\n{hidden_states}")
             embedding = selected_states.mean(dim=1)
             embedding = torch.nn.functional.normalize(embedding, p=2, dim=1)
             embedding_np = np.vstack(embedding).astype("float32")
             embedding_list = [element for element in embedding_np[0]]
-            # print(type(embedding_list))
-            # print(type(embedding_list[0]))
-        
+
         return embedding_list
     
     def __call__(self, text):
         return self.embed_query(text)
 
-
+# hash function to give every file a hash value
 def hash_function(data):
     hasher = hashlib.sha256()
     for chunk in data:
@@ -80,7 +74,7 @@ def hash_function(data):
 
     return hasher.hexdigest()
 
-
+# function to get the file name from its hash value
 def get_dict_key(dict, v):
     for key, value in dict.items():
         if value == v:
@@ -88,7 +82,7 @@ def get_dict_key(dict, v):
     
     return None
 
-
+# function to convert the html files to text
 def html_reader(file_path):
     with open(file_path, 'r', encoding='utf-8') as f:
         html_content = f.read()
@@ -104,7 +98,6 @@ def html_reader(file_path):
                 stack.append(child)
 
         else:
-            # print(element)
             file_text.append(element)
 
     if soup.title:
@@ -117,22 +110,16 @@ def html_reader(file_path):
 
     return text
 
-
+# function to read the files
 def reader(file_path):
     try:
         if file_path.endswith(".txt"):
-            print("txt")
             with open(file_path, "r", encoding="utf-8") as f:
                 return f.read()
         elif file_path.endswith(".html"):
-            print("html")
             return html_reader(file_path)
-        elif file_path.endswith(".csv"):
-            ...
         elif file_path.endswith(".pdf"):
-            print("pdf")
             loader = PyPDFLoader(file_path)
-            # print(loader)
             documents = loader.load()
             data = "\n".join(doc.page_content for doc in documents)
             return data
@@ -140,13 +127,11 @@ def reader(file_path):
         return "error not supported"
             
     except FileNotFoundError:
-        print(f"{file_path} not found")
         return FileNotFoundError
 
 
-
+# function to split the files data and save the metadata of every splitted data
 def splitter(data, file_name):
-    print("split")
     splitted_data = []
     metadata = []
     for part in text_splitter.split_text(data):
@@ -155,7 +140,7 @@ def splitter(data, file_name):
 
     return splitted_data, metadata
 
-
+# function to generate the answer
 def generate_answer(query):
     if faiss_store is None:
         return {
@@ -172,19 +157,16 @@ def generate_answer(query):
     response = qa.invoke(query)
     return response
 
-
+# function to initialize the models and the faiss index database
 def initialize_model():
-    global tokenizer, model, llm, QA_CHAIN_PROMPT, embedding, faiss_store, text_splitter
-    start_time = time.time()
-    # initializing the llama3.2-1B model
-    # model_name = "yam-peleg/Hebrew-Mistral-7B"
-    model_name = "meta-llama/Llama-3.2-1B"
-    # we dont need it anymore
-    token = "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"
-    tokenizer = AutoTokenizer.from_pretrained(model_name)
-    tokenizer.pad_token = tokenizer.eos_token
-    model = AutoModel.from_pretrained(model_name)
-    text_generization_model = AutoModelForCausalLM.from_pretrained(model_name)
+    global embedding_model_tokenizer, embedding_model, llm, QA_CHAIN_PROMPT, embedding, faiss_store, text_splitter
+    embedding_model_name = "intfloat/multilingual-e5-large-instruct"
+    embedding_model_tokenizer = AutoTokenizer.from_pretrained(embedding_model_name)
+    embedding_model_tokenizer.pad_token = embedding_model_tokenizer.eos_token
+    embedding_model = AutoModel.from_pretrained(embedding_model_name, trust_remote_code=True).to('cpu')
+    # to run it on gpu
+    # embedding_model.eval()
+    # embedding_model.to('cuda')
 
     text_splitter = RecursiveCharacterTextSplitter(
             separators=["\n", ".", "\n\n"],
@@ -193,55 +175,55 @@ def initialize_model():
             length_function=len
     )
 
-    pipe = pipeline("text-generation", model=text_generization_model, truncation=True, tokenizer=tokenizer, max_length=4000, max_new_tokens=1000)
+    llm = ChatOpenAI(
+        model="gpt-4.1-mini",
+        temperature=0,
+        openai_api_key=OpenAI_key
+    )
 
-    llm = HuggingFacePipeline(pipeline=pipe)
     template = """
         Use the following pieces of context to answer the question at the end.
-        If you don't know the answer, just say that you don't know.
-        Avoid repeating the same sentence or phrase. Be concise and informative.
-        If the information is similar, combine it into a single sentence. 
-        Provide a clear and unique answer. Always say "Thanks for asking!" at the end.
 
+        - Do not repeat information if multiple contexts say the same thing.
+        - Ignore any context that is clearly irrelevant or unrelated to the question.
+        - Provide a clear, unique, and concise answer based only on the relevant context.
+        - If you don’t know the answer, just say you don’t know. Don’t make one up.
+        - Keep the answer to a maximum of three sentences.
+        - Always end your answer with: "Thanks for asking!"
+
+        Contexts:
         {context}
+
+        Question: {question}
 
         Answer:
     """
     QA_CHAIN_PROMPT = PromptTemplate.from_template(template)
-
-    # persist_directory = 'chroma_db/'
-    # index_folder = "faiss_index"
-    # data_file = "data_file.txt"
+    
     embedding = embedding_object()
     faiss_store = None
     if os.path.exists(index_folder):
         faiss_store = FAISS.load_local(index_folder, embeddings=embedding, allow_dangerous_deserialization=True)
 
-    end_time = time.time()
-    elapsed_time = end_time - start_time
-    print(f"Elapsed time: {elapsed_time:.4f} seconds")
 
-
+# function to deal with the http get requests for the answer of the query
 @server.route('/answer/<question>', methods=["GET"])
 def get_answer(question):
-    print(f"question is {question}")
     answer_data = generate_answer(question)
     files = list()
+    files_data = list()
     for file in answer_data["source_documents"]:
-        print(file)
         if file.metadata["source"] not in files:
             files.append(file.metadata["source"])
-    # print(answer_data)
-    # print(type(answer_data))
-    answer_division = answer_data["result"].split("Answer:")
-    important_data = {"answer":answer_division[1], "source_files":files}
-    print(important_data)
+            files_data.append(file.page_content)
+
+    important_data = {"answer":answer_data["result"], "source_files":files, "data":files_data}
     return jsonify(important_data)
 
 
+# function to deal with the http get requests for getting files names
 @server.route("/files", methods= ["GET"])
 def get_all_files():
-    print("get files here")
     if os.path.exists(mainFolder):
         files = os.listdir(mainFolder)
         response = {"files names": files}
@@ -250,17 +232,33 @@ def get_all_files():
         return jsonify({"error": "you have no saved files in the server"}), 404
 
 
+# function to deal with the hhtp get requests for getting a specific file data to download or view the file
 @server.route("/files/<file_name>", methods=["GET"])
 def get_file(file_name):
     file_path = os.path.join(mainFolder, file_name)
     download = request.args.get("download").lower() == "true"
     if os.path.exists(file_path):
-        print(f"{file_name} exists")
         return send_file(file_path, as_attachment=download, download_name=file_name)
     else:
         return jsonify({"error": "File not found"}), 404
 
 
+# function to deal with the hhtp get requests for getting a source file content for the highlighted viewer 
+@server.route("/file_content/<file_name>", methods=["GET"])
+def get_file_content(file_name):
+    file_path = os.path.join(mainFolder, file_name)
+    if os.path.exists(file_path):
+        try:
+            content = reader(file_path)
+            return jsonify({"content": content})
+        except Exception as e:
+            return jsonify({"error": f"Failed to read file: {str(e)}"}), 500
+    else:
+        return jsonify({"error": "File not found"}), 404
+
+
+# function to deal with the hhtp get requests for saving number of files in the server and embedding their data
+# then dave their hash value
 @server.route("/saveFiles", methods=["POST"])
 def save_files():
     global faiss_store
@@ -270,36 +268,30 @@ def save_files():
     if not os.path.exists(tempFolder):
         os.makedirs(tempFolder)
     
-    # saved_files =  os.listdir(mainFolder)
-    # print(saved_files)
     saved_hashes = {}
     if os.path.exists(hash_json):
         with open(hash_json, "r") as file:
             saved_hashes = json.load(file)
      
-    print(saved_hashes)
     if "files" not in request.files:
         return jsonify({"error": "No files found in request"}), 400
     
     uploaded_files = request.files.getlist("files")
-    # print(uploaded_files)
     response = ""
     for file in uploaded_files:
         if file.filename == "":
             continue
-        # if file.filename not in saved_files:
-        print(file.filename)
+
         if os.path.exists(index_folder):
             faiss_store = FAISS.load_local(index_folder, embeddings=embedding, allow_dangerous_deserialization=True)
 
         saving_path = os.path.join(mainFolder, file.filename)
         temp_saving_path = os.path.join(tempFolder, file.filename)
         file.save(temp_saving_path)
-        # time.sleep(5)
         file_data = reader(temp_saving_path)
         if file_data == FileNotFoundError:
             return jsonify({"error": "error while uploading the files"}), 501
-            # in splitter for every chunk give the source = filename
+            
         splitted_data, metadata = splitter(file_data, file.filename)
         hash_value = hash_function(splitted_data)
         if hash_value in saved_hashes.values():
@@ -323,6 +315,7 @@ def save_files():
 
     return jsonify({"response": response})
 
+# the main function to run the server
 if __name__ == "__main__":
     initialize_model()
     server.run()

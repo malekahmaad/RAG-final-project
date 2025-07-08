@@ -1,6 +1,7 @@
 import './chat.css';
 import { useState, useRef } from 'react';
 import axios from 'axios';
+import PdfViewer from './PdfViewer.js';
 
 function Chat() {
   const [chatMessages, setChatMessages] = useState([]);
@@ -10,6 +11,11 @@ function Chat() {
   const [expandedIndexes, setExpandedIndexes] = useState([]);
   const placeholder = useRef(null);
   const chat = useRef(null);
+  const [viewerContent, setViewerContent] = useState(null);
+  const [viewerTitle, setViewerTitle] = useState("");
+  const [viewerVisible, setViewerVisible] = useState(false);
+  const [pdfViewer, setPdfViewer] = useState({ visible: false, fileUrl: "" });
+  const [chunks, setChunks] = useState([]);
 
   const toggleSources = (index) => {
     setExpandedIndexes(prev =>
@@ -21,11 +27,8 @@ function Chat() {
 
   const handle_send = ()=>{
     setAnswering(true);
-    console.log(input);
-    console.log(chatMessages)
     const trimmed = input.trim();
     if (trimmed === ""){
-      console.log("cancelled");
       setInput("");
       return;
     }
@@ -42,6 +45,7 @@ function Chat() {
       let a = response.data["answer"];
       const fullAnswer = a.replace(/\n\s+/g, '\n');
       const sources = response.data["source_files"];
+      const data = response.data["data"];
 
       let charIndex = 0;
 
@@ -52,9 +56,7 @@ function Chat() {
       
           const text = fullAnswer.slice(0, charIndex + 1);
           current.answer = text + (charIndex < fullAnswer.length - 1 ? "|" : "");
-          // console.log(current.answer)
           updated[updated.length - 1] = { ...current };
-          // console.log(updated[updated.length - 1]);
       
           return updated;
         });
@@ -65,13 +67,13 @@ function Chat() {
           const delay = fullAnswer[charIndex] === "\n" ? 80 : 25;
           setTimeout(typeChar, delay);
         } else {
-          // Final update to remove the "|" cursor and add sources
           setChatMessages(prev => {
             const updated = [...prev];
             updated[updated.length - 1] = {
               ...updated[updated.length - 1],
-              answer: fullAnswer, // remove cursor
-              source_files: sources
+              answer: fullAnswer, 
+              source_files: sources,
+              files_data: data
             };
             return updated;
           });
@@ -84,27 +86,53 @@ function Chat() {
       console.error(error);
       setAnswering(false);
     })
-    // .finally(() => {
-    //   setAnswering(false);
-    // });
   }
 
-  const handleDownloadFile = (fileName) => {
-    console.log("download "+fileName);
-    axios.get(`http://localhost:5000//files/${fileName}?download=true`, {
-     responseType: 'blob'
-    })
-    .then((response) =>{ 
-      console.log(response)
-      const url = window.URL.createObjectURL(new Blob([response.data]));
-      const link = document.createElement('a');
-      link.href = url;
-      link.setAttribute('download', fileName);
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-    })
-    .catch(error=>console.error(error));
+  function highlightChunks(content, chunks) {
+    if (!chunks || chunks.length === 0) return content;
+
+    const escapeRegExp = (string) => string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const validChunks = chunks
+      .map(chunk => chunk.trim())
+      .filter(chunk => chunk.length > 0)
+      .sort((a, b) => b.length - a.length);
+
+    let highlighted = content;
+
+    validChunks.forEach(chunk => {
+      const regex = new RegExp(escapeRegExp(chunk), 'gi');
+      highlighted = highlighted.replace(regex, `<mark>${chunk}</mark>`);
+    });
+
+    return highlighted;
+  }
+
+  const handleViewFile = async (fileName, data) => {
+    try {
+    setViewerVisible(false); 
+    setPdfViewer({ visible: false, fileUrl: "" }); 
+
+    if (!(fileName.toLowerCase().endsWith(".pdf"))) {
+      const response = await axios.get(`http://localhost:5000/file_content/${fileName}`);
+      let fileContent = response.data.content;
+
+      const highlightedContent = highlightChunks(fileContent, data);
+      setViewerContent(highlightedContent);
+      setViewerTitle(fileName);
+      setViewerVisible(true); 
+      document.body.style.overflow = "hidden";
+    } else {
+      const fileUrl = `http://localhost:5000/files/${fileName}?download=false`;
+      setPdfViewer({ visible: true, fileUrl }); 
+      setChunks(data);
+      document.body.style.overflow = "hidden";
+    }
+  } catch (error) {
+    console.error("Error fetching file content:", error);
+    setViewerVisible(false);
+    setPdfViewer({ visible: false, fileUrl: "" });
+    document.body.style.overflow = "auto";
+  }
   }
 
   return (
@@ -136,13 +164,47 @@ function Chat() {
                       <ul>
                         {item.source_files.map((file, i) => (
                           <li key={i}>
-                            <button className="file-download-button" onClick={() => handleDownloadFile(file)}>
+                            <button className="file-download-button" title={file} onClick={() => handleViewFile(file, item.files_data)}>
                               {file}
                             </button>
                           </li>
                         ))}
                       </ul>
                     </div>
+                  )}
+                  {viewerVisible && (
+                    <div 
+                      className="modal-overlay" 
+                      onClick={() => {
+                        setViewerVisible(false);
+                        document.body.style.overflow = "auto";
+                      }}
+                    >
+                      <div 
+                        className="modal-content" 
+                        onClick={(e) => e.stopPropagation()}
+                        style={{ direction: /[\u0590-\u05FF]/.test(viewerContent) ? 'rtl' : 'ltr' }}
+                      >
+                        <div className="modal-header">
+                          <h2>{viewerTitle}</h2>
+                          <button onClick={() => {
+                            setViewerVisible(false);
+                            document.body.style.overflow = "auto";
+                          }}>×</button>
+                        </div>
+                        <div className="modal-body" dangerouslySetInnerHTML={{ __html: viewerContent }} />
+                      </div>
+                    </div>
+                  )}
+                  {pdfViewer.visible && (
+                    <PdfViewer 
+                      fileUrl={pdfViewer.fileUrl} 
+                      onClose={() => {
+                        setPdfViewer({ visible: false, fileUrl: "" });
+                        document.body.style.overflow = "auto";
+                      }}
+                      chunks={chunks} 
+                    />
                   )}
                 </div>
               </div>

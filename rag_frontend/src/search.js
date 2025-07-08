@@ -7,7 +7,6 @@ function Search() {
   const [allFiles, setAllFiles] = useState([]);
   const [uploading, setUploading] = useState(false);
   const [uploadMessage, setUploadMessage] = useState("");
-  // const [searchInput, setSearchInput] = useState("");
   useEffect(()=>{
     get_files();
   }, []);
@@ -15,7 +14,6 @@ function Search() {
   const get_files = () =>{
     axios.get("http://localhost:5000/files")
     .then(response=>{
-      // setFiles(response.data["files names"].sort())
       const sortedFiles = response.data["files names"].sort();
       setFiles(sortedFiles);
       setAllFiles(sortedFiles);
@@ -36,7 +34,6 @@ function Search() {
     });
     axios.post("http://localhost:5000/saveFiles", form)
     .then(res => {
-      console.log(res)
       get_files();
       setUploadMessage("✅ File(s) uploaded successfully!");
       setTimeout(() => setUploadMessage(""), 3000);
@@ -45,23 +42,18 @@ function Search() {
     .finally(() => {
       setUploading(false); 
     });
-    // console.log(form);
-    // console.log(form["files"]);
   };
 
   const handleViewFile = (fileName) => {
-    console.log("view "+fileName);
     const fileUrl = `http://localhost:5000/files/${fileName}?download=false`;
     window.open(fileUrl, "_blank");
   }
 
   const handleDownloadFile = (fileName) => {
-    console.log("download "+fileName);
     axios.get(`http://localhost:5000//files/${fileName}?download=true`, {
      responseType: 'blob'
     })
     .then((response) =>{ 
-      console.log(response)
       const url = window.URL.createObjectURL(new Blob([response.data]));
       const link = document.createElement('a');
       link.href = url;
@@ -76,11 +68,9 @@ function Search() {
   const handleInputChange = (event) => {
     const value = event.target.value.toLowerCase();
     if(value === ""){
-      // console.log("nice");
       setFiles(allFiles)
     }
     else{
-      // console.log("Search input:", value);
       const filteredFiles = allFiles.filter(file =>
         file.toLowerCase().includes(value)
       );
@@ -96,10 +86,8 @@ function Search() {
           placeholder='Write file name...'
           className='file_input'
           type="text"
-          // value={searchInput}
           onChange={(e) => handleInputChange(e)}
         />
-        {/* <button className='search_file' title="Submit">🔍</button> */}
       </div>
       <div className={` ${files.length === 0 ? 'hidden' : 'files'}`} >
         <ul className='file-list'>

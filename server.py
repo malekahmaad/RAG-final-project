@@ -144,7 +144,7 @@ def splitter(data, file_name):
 def generate_answer(query):
     if faiss_store is None:
         return {
-            "result": "Answer: I dont know, can you upload some files so that I help you ?",
+            "result": "I dont know, can you upload some files so that I help you ?",
             "source_documents": []
         }
     
@@ -202,8 +202,6 @@ def initialize_model():
     
     embedding = embedding_object()
     faiss_store = None
-    if os.path.exists(index_folder):
-        faiss_store = FAISS.load_local(index_folder, embeddings=embedding, allow_dangerous_deserialization=True)
 
 
 # function to deal with the http get requests for the answer of the query
@@ -275,15 +273,15 @@ def save_files():
      
     if "files" not in request.files:
         return jsonify({"error": "No files found in request"}), 400
-    
+
+    if os.path.exists(index_folder):
+        faiss_store = FAISS.load_local(index_folder, embeddings=embedding, allow_dangerous_deserialization=True)
+
     uploaded_files = request.files.getlist("files")
     response = ""
     for file in uploaded_files:
         if file.filename == "":
             continue
-
-        if os.path.exists(index_folder):
-            faiss_store = FAISS.load_local(index_folder, embeddings=embedding, allow_dangerous_deserialization=True)
 
         saving_path = os.path.join(mainFolder, file.filename)
         temp_saving_path = os.path.join(tempFolder, file.filename)
@@ -300,16 +298,18 @@ def save_files():
             os.remove(temp_saving_path)
             continue
 
-        if faiss_store == None:
+        if faiss_store is None:
             faiss_store = FAISS.from_texts(splitted_data, embedding=embedding, metadatas=metadata)
         else:
             faiss_store.add_texts(splitted_data, metadatas=metadata)
 
-        faiss_store.save_local(index_folder)
         shutil.move(temp_saving_path, saving_path)
         saved_hashes[file.filename] = hash_value
         response+=f"{file.filename} uploaded successfully, "
     
+    if faiss_store is not None:
+        faiss_store.save_local(index_folder)
+
     with open(hash_json, "w") as file:
         json.dump(saved_hashes, file, indent=4)
 

@@ -124,16 +124,25 @@ function Search() {
         multiple
       />
       <button 
-      className='upload_button' 
-      title="Upload new file"
-      onClick={() => document.getElementById("file-upload").click()}
-      disabled = {uploading}
-      style={{
-        cursor: uploading ? 'not-allowed' : 'pointer',
-        opacity: uploading ? 0.6 : 1
-      }}
+        className='upload_button' 
+        title="Upload new file"
+        onClick={() => document.getElementById("file-upload").click()}
+        disabled={uploading}
+        style={{
+          cursor: uploading ? 'not-allowed' : 'pointer',
+          opacity: uploading ? 0.6 : 1
+        }}
       >
-        📤 Upload File
+        {uploading ? (
+          <>
+            <span className="spinner"></span>
+            Uploading...
+          </>
+        ) : (
+          <>
+            📤 Upload File
+          </>
+        )}
       </button>
       {uploadMessage && (
         <div className="upload-message">

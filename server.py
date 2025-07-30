@@ -150,7 +150,7 @@ def generate_answer(query):
     
     qa = RetrievalQA.from_chain_type(
         llm=llm,
-        retriever=faiss_store.as_retriever(search_kwargs={"k": 2}),
+        retriever=faiss_store.as_retriever(search_kwargs={"k": 8}),
         return_source_documents=True,
         chain_type_kwargs={"prompt": QA_CHAIN_PROMPT}
     )
@@ -188,8 +188,6 @@ def initialize_model():
         - Ignore any context that is clearly irrelevant or unrelated to the question.
         - Provide a clear, unique, and concise answer based only on the relevant context.
         - If you don’t know the answer, just say you don’t know. Don’t make one up.
-        - Keep the answer to a maximum of three sentences.
-        - Always end your answer with: "Thanks for asking!"
 
         Contexts:
         {context}
@@ -202,6 +200,8 @@ def initialize_model():
     
     embedding = embedding_object()
     faiss_store = None
+    if os.path.exists(index_folder):
+        faiss_store = FAISS.load_local(index_folder, embeddings=embedding, allow_dangerous_deserialization=True)
 
 
 # function to deal with the http get requests for the answer of the query

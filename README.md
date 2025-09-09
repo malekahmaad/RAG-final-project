@@ -17,29 +17,29 @@ The system provides:
 -----------------------------------------------------------------------------------------------------------------------------
 # System Architecture
 
-- Frontend: React web application
+Frontend: React web application
 
-Displays uploaded files with search/filter.
+- Displays uploaded files with search/filter.
 
-Chat-like Q&A interface for interacting with the RAG system.
+- Chat-like Q&A interface for interacting with the RAG system.
 
-- Backend: Flask server
+Backend: Flask server
 
-Handles file uploads, preprocessing, embedding, and querying.
+- Handles file uploads, preprocessing, embedding, and querying.
 
-Updates FAISS vector database.
+- Updates FAISS vector database.
 
-- Database: FAISS + local storage
+Database: FAISS + local storage
 
-Stores embeddings and metadata.
+- Stores embeddings and metadata.
 
-Maintains uploaded files.
+- Maintains uploaded files.
 
-- Models:
+Models:
 
-Embeddings model
+- Embeddings model
 
-Text Generation model
+- Text Generation model
 
 -----------------------------------------------------------------------------------------------------------------------------
 # Features

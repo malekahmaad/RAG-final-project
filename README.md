@@ -64,6 +64,7 @@ Models:
   ![App Screenshot](./images/questions.png)
 
 - Did three different tests
+
   1- K testing (number of closest vectors)
 
    ![App Screenshot](./images/k_testing.png)

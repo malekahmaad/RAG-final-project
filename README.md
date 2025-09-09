@@ -74,6 +74,6 @@ Text Generation model
 
   3- Text Generation model testing
 
-   ![App Screenshot](./images/text_generation_model.png)
+   ![App Screenshot](./images/text_generations_testing.png)
 
 -----------------------------------------------------------------------------------------------------------------------------

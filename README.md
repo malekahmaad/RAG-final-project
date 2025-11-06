@@ -78,3 +78,4 @@ Models:
    ![App Screenshot](./images/text_generations_testing.png)
 
 -----------------------------------------------------------------------------------------------------------------------------
+To see how the project work you can checkout this link: https://drive.google.com/drive/folders/1b9vcK1VIdCbZbIw0Sa8Gb7Gc96uNaVAg
